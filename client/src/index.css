@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add these styles to your App.css */
+.container {
+  @apply bg-gray-100 min-h-screen flex items-center justify-center;
+}
+
+h2,
+h3 {
+  @apply text-center text-lg font-semibold text-gray-800 mb-4;
+}
+
+button {
+  @apply bg-blue-500 text-white font-semibold py-2 px-4 rounded shadow hover:bg-blue-600 transition duration-300;
+}
+
+button:disabled {
+  @apply bg-gray-400 cursor-not-allowed;
+}
+
+input[type="text"] {
+  @apply border border-gray-300 rounded p-2 mb-4 w-full focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+ul {
+  @apply list-disc list-inside mb-4;
+}
+
+li {
+  @apply mb-2 flex justify-between items-center;
+}
+
+.table {
+  @apply border-collapse mx-auto my-4;
+}
+
+td {
+  @apply border border-gray-300 text-center py-3 w-12 h-12 cursor-pointer text-lg font-semibold;
+}
+
+td.marked {
+  @apply bg-green-400 text-white;
+}
+
+td:hover {
+  @apply bg-gray-200;
+}
+
+.status {
+  @apply mt-4 text-xl font-medium text-gray-700;
+}
