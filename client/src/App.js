@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import io from "socket.io-client";
 import "./App.css";
 
+// Initialize the socket connection
 const socket = io("http://localhost:3001");
 
 function App() {
@@ -20,9 +21,9 @@ function App() {
   const [userId, setUserId] = useState("");
 
   useEffect(() => {
+    // Socket event listeners
     socket.on("connect", () => {
-      const assignedId = socket.id;
-      setUserId(assignedId);
+      setUserId(socket.id);
     });
 
     socket.on("gameStarted", (boards, players) => {
@@ -31,6 +32,7 @@ function App() {
         setBoard(playerBoard);
         setPlayers(players);
         setGameStarted(true);
+        setMarkedCells(new Set()); // Clear marked cells at the start of a new game
       }
     });
 
@@ -50,13 +52,25 @@ function App() {
 
     socket.on("nextTurn", (playerId) => {
       setCurrentPlayer(playerId);
-      setMyTurn(socket.id === playerId); // Check if it's now this player's turn
+      setMyTurn(socket.id === playerId);
     });
 
     socket.on("updateGroups", (availableGroups) => {
       setGroups(availableGroups);
     });
 
+    socket.on("gameReset", () => {
+      // Clear game state on reset
+      setBoard([]);
+      setMarkedCells(new Set());
+      setGameStarted(false);
+      setGameWon(false);
+      setWinner("");
+      setCurrentPlayer("");
+      setMyTurn(false);
+    });
+
+    // Clean up socket listeners on component unmount
     return () => {
       socket.off("connect");
       socket.off("gameStarted");
@@ -65,6 +79,7 @@ function App() {
       socket.off("gameWon");
       socket.off("nextTurn");
       socket.off("updateGroups");
+      socket.off("gameReset");
     };
   }, []);
 
@@ -100,6 +115,19 @@ function App() {
       setMyTurn(socket.id === players[0]);
     } else {
       alert("Not enough players to start the game.");
+    }
+  };
+
+  const resetGame = () => {
+    // Ensure groupName is a string and not an object
+    if (groupName && typeof groupName === "string") {
+      socket.emit("resetGame", groupName, (response) => {
+        if (!response.success) {
+          alert(response.message);
+        }
+      });
+    } else {
+      alert("Invalid group name.");
     }
   };
 
@@ -177,6 +205,10 @@ function App() {
                       myTurn ? "(Your Turn)" : "(Waiting for Next Turn)"
                     }`}
               </h3>
+
+              {gameWon && isGroupCreator && (
+                <button onClick={resetGame}>Reset Game</button>
+              )}
             </>
           ) : (
             isGroupCreator && <button onClick={startGame}>Start Game</button>

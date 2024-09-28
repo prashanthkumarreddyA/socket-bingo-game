@@ -18,7 +18,22 @@ app.use(cors());
 
 let groups = {};
 let availableGroups = [];
-let globalMarkedCells = new Set(); // Store globally marked cells
+function resetGame(groupName) {
+  if (groups[groupName]) {
+    // Reset the group's game state
+    groups[groupName].markedCells = new Set();
+    groups[groupName].winner = null;
+    groups[groupName].gameStarted = false;
+    groups[groupName].currentTurn = 0;
+
+    // Emit reset event to all players in the group
+    io.to(groupName).emit("gameReset");
+
+    console.log(`Game reset for group ${groupName}`);
+  } else {
+    console.log(`Group ${groupName} not found`);
+  }
+}
 
 function generateGameBoard() {
   const numbers = Array.from({ length: 25 }, (_, i) => i + 1);
@@ -44,6 +59,7 @@ io.on("connection", (socket) => {
         status: "waiting",
         currentPlayerIndex: 0,
         gameStarted: false,
+        markedCells: new Set(), // Store marked cells for this group
       };
       availableGroups.push(groupName);
       socket.join(groupName);
@@ -92,8 +108,8 @@ io.on("connection", (socket) => {
 
       // Allow only the current player to mark the cell
       if (socket.id === playerId) {
-        if (!globalMarkedCells.has(number)) {
-          globalMarkedCells.add(number);
+        if (!group.markedCells.has(number)) {
+          group.markedCells.add(number); // Use group's markedCells set
           io.to(groupName).emit("cellMarked", { number });
           checkForBingo(group, number);
           callback({ success: true });
@@ -105,6 +121,19 @@ io.on("connection", (socket) => {
       }
     } else {
       callback({ success: false, message: "Game has not started!" });
+    }
+  });
+
+  socket.on("resetGame", (groupName, callback) => {
+    // Check if the groupName is correct and a string
+    console.log("Reset requested for group:", groupName);
+
+    const group = groups[groupName];
+    if (group) {
+      resetGame(groupName);
+      callback({ success: true });
+    } else {
+      callback({ success: false, message: "Group not found" });
     }
   });
 
@@ -131,7 +160,7 @@ const checkForBingo = (group, lastMarkedNumber) => {
   const playerBoard = group.boards[playerId];
 
   // Create a flat array of marked numbers for easy checking
-  const markedNumbers = Array.from(globalMarkedCells);
+  const markedNumbers = Array.from(group.markedCells);
   const rows = playerBoard;
   const columns = playerBoard[0].map((_, colIndex) =>
     playerBoard.map((row) => row[colIndex])
@@ -164,19 +193,6 @@ const checkForBingo = (group, lastMarkedNumber) => {
 
     // Emit the nextTurn event with the next player
     io.to(group.players).emit("nextTurn", nextPlayer); // Use the group object to emit
-  }
-};
-
-console.log(globalMarkedCells);
-
-const resetGame = (groupName) => {
-  const group = groups[groupName];
-  if (group) {
-    group.status = "waiting";
-    group.gameStarted = false;
-    group.players = [];
-    group.boards = {};
-    group.currentPlayerIndex = 0;
   }
 };
 
