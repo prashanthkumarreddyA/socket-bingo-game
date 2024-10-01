@@ -3,7 +3,7 @@ import io from "socket.io-client";
 import "./App.css";
 
 // Initialize the socket connection
-const socket = io("http://localhost:3001");
+const socket = io(process.env.REACT_APP_SOCKET_URL);
 
 function App() {
   const [groupName, setGroupName] = useState("");
