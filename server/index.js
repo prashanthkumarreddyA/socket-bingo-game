@@ -18,17 +18,17 @@ app.use(cors());
 
 let groups = {};
 let availableGroups = [];
+
 function resetGame(groupName) {
   if (groups[groupName]) {
-    // Reset the group's game state
-    groups[groupName].markedCells = new Set();
+    groups[groupName].markedCells.clear(); // Clear marked cells
     groups[groupName].winner = null;
     groups[groupName].gameStarted = false;
-    groups[groupName].currentTurn = 0;
+    groups[groupName].currentPlayerIndex = 0;
+    groups[groupName].boards = {}; // Reset boards
 
     // Emit reset event to all players in the group
-    io.to(groupName).emit("gameReset");
-
+    io.to(groupName).emit("gameReset", groups[groupName].players);
     console.log(`Game reset for group ${groupName}`);
   } else {
     console.log(`Group ${groupName} not found`);
@@ -83,21 +83,20 @@ io.on("connection", (socket) => {
 
   socket.on("startGame", (groupName) => {
     const group = groups[groupName];
-    if (group && group.status === "waiting") {
-      if (group.players.length >= 2) {
-        group.status = "in-progress";
-        group.gameStarted = true;
+    if (group && group.players.length >= 2) {
+      group.gameStarted = true;
 
-        group.players.forEach((playerId) => {
-          group.boards[playerId] = generateGameBoard();
-        });
+      // Generate boards for each player
+      group.players.forEach((playerId) => {
+        group.boards[playerId] = generateGameBoard();
+      });
 
-        io.to(groupName).emit("gameStarted", group.boards, group.players);
-      } else {
-        console.log(
-          `Cannot start game: not enough players in group ${groupName}.`
-        );
-      }
+      io.to(groupName).emit("gameStarted", group.boards, group.players);
+      console.log("Game started for group:", groupName);
+    } else {
+      console.log(
+        `Cannot start game: not enough players in group ${groupName}.`
+      );
     }
   });
 
@@ -125,16 +124,22 @@ io.on("connection", (socket) => {
   });
 
   socket.on("resetGame", (groupName, callback) => {
-    // Check if the groupName is correct and a string
-    console.log("Reset requested for group:", groupName);
-
+    console.log("Received request to reset game for group:", groupName);
     const group = groups[groupName];
-    if (group) {
+    if (group && group.players[0] === socket.id) {
       resetGame(groupName);
       callback({ success: true });
     } else {
-      callback({ success: false, message: "Group not found" });
+      callback({
+        success: false,
+        message: "Only the group creator can reset the game.",
+      });
     }
+  });
+
+  socket.on("resetGame", (groupName, callback) => {
+    resetGame(groupName);
+    callback({ success: true });
   });
 
   socket.on("disconnect", () => {
@@ -183,8 +188,8 @@ const checkForBingo = (group, lastMarkedNumber) => {
 
   // If the player completes 5 lines, declare a win
   if (totalCompletedLines >= 5) {
+    console.log(group, "group");
     io.to(group.players).emit("gameWon", playerId); // Use the playerId directly
-    resetGame(group); // Reset game logic after a win
   } else {
     // Move to the next player
     group.currentPlayerIndex =

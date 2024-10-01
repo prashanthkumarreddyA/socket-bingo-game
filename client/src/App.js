@@ -59,8 +59,7 @@ function App() {
       setGroups(availableGroups);
     });
 
-    socket.on("gameReset", () => {
-      // Clear game state on reset
+    socket.on("gameReset", (players) => {
       setBoard([]);
       setMarkedCells(new Set());
       setGameStarted(false);
@@ -68,6 +67,7 @@ function App() {
       setWinner("");
       setCurrentPlayer("");
       setMyTurn(false);
+      setPlayers(players); // Update players state on reset
     });
 
     // Clean up socket listeners on component unmount
@@ -109,6 +109,7 @@ function App() {
   };
 
   const startGame = () => {
+    console.log("hai");
     if (players.length >= 2) {
       socket.emit("startGame", groupName);
       setCurrentPlayer(players[0]);
@@ -119,10 +120,17 @@ function App() {
   };
 
   const resetGame = () => {
-    // Ensure groupName is a string and not an object
     if (groupName && typeof groupName === "string") {
       socket.emit("resetGame", groupName, (response) => {
-        if (!response.success) {
+        if (response.success) {
+          setBoard([]);
+          setMarkedCells(new Set());
+          setGameStarted(false);
+          setGameWon(false);
+          setWinner("");
+          setCurrentPlayer("");
+          setMyTurn(false);
+        } else {
           alert(response.message);
         }
       });
@@ -152,6 +160,12 @@ function App() {
       alert("The game hasn't started yet.");
     }
   };
+
+  console.log(players, "players");
+  console.log(userId, "userId");
+  console.log(myTurn, "players");
+  console.log(isGroupCreator, "isGroupCreator");
+  console.log(gameStarted, "gameStarted");
 
   return (
     <div className="container mx-auto p-6">
@@ -198,7 +212,6 @@ function App() {
                 </tbody>
               </table>
               <h3>
-                Status:{" "}
                 {gameWon
                   ? `Winner: ${winner}`
                   : `Current Player: ${currentPlayer} ${
@@ -206,7 +219,8 @@ function App() {
                     }`}
               </h3>
 
-              {gameWon && isGroupCreator && (
+              {/* Show Reset Game button regardless of game state, only if the user is the creator */}
+              {isGroupCreator && (
                 <button onClick={resetGame}>Reset Game</button>
               )}
             </>
